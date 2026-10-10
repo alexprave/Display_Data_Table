@@ -19,7 +19,7 @@ No installation, no internet, no extra programs needed.
 
 ---
 
-## Data file format (`your_data_filename.txt`)
+### Data file format (`your_data_filename.txt`)
 
 The file must contain one day per line in this format:
 
