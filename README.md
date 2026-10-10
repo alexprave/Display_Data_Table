@@ -2,13 +2,11 @@
 
 A simple, offline contribution-style calendar that visualizes your CS2 match history.
 
-
-Even made a GitHub theme :)
+Even made a GitHub theme.
 <img width="1200" height="247" alt="Image" src="https://github.com/user-attachments/assets/c73147d1-1767-40dd-8319-c398c4653a2f" />
-
+---
 Inspired by CSRep.gg activity graphs.
-<img width="1200" height="247" alt="Image" src="https://github.com/user-attachments/assets/3e86fd07-7b70-4dab-a7ef-4a45f76d82d8" />
-
+<img width="1200" height="247" alt="Image" src="https://github.com/user-attachments/assets/cddc4e6d-a887-468d-b837-d25e5c4bbeee" />
 ---
 
 ## How to use
