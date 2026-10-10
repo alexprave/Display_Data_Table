@@ -106,16 +106,27 @@
     }
 
     .card {
+      display: none;
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 20px;
-      overflow-x: auto;
+      /* Resize the entire outer box, including upload area, controls and calendar. */
+      resize: both;
+      overflow: auto;
+      width: 100%;
+      max-width: none;
+      min-width: 420px;
+      min-height: 260px;
     }
 
     /* Once data is loaded, let the themed calendar fill the card edge-to-edge. */
     .card.loaded {
+      display: block;
       padding: 0;
+      /* Keep the entire resizable outer box filled with the active theme background. */
+      background: var(--calendar-bg);
+      border-color: var(--calendar-bg);
     }
 
     .header {
@@ -142,7 +153,7 @@
       border-radius: 10px;
       padding: 18px;
       text-align: center;
-      margin-bottom: 20px;
+      margin: 0 0 20px;
       cursor: pointer;
       transition: 0.2s;
       color: var(--muted);
@@ -168,6 +179,16 @@
       margin: 0;
       border-radius: 11px;
     }
+
+    /* The calendar panel follows the size of the outer card; it is not independently resizable. */
+    .calendar-panel {
+      width: 100%;
+      min-width: 0;
+    }
+
+    .year-section { margin-bottom: 28px; }
+    .year-heading { font-size: 1.15rem; color: var(--header-accent); margin: 8px 0 10px 38px; }
+    .year-section:last-child { margin-bottom: 0; }
 
     .calendar-area {
       background: transparent;
@@ -322,13 +343,13 @@
     <h1>Match Activity History</h1>
     <p class="subtitle">Just like on CSRep.gg History Visualizer for no apparent reason <3 </p>
 
-    <div class="card">
-      <!-- FILE LOADER -->
-      <div class="file-zone" id="fileZone">
-        <div>Click here or drag & drop <strong>Your_data.txt</strong></div>
-        <input type="file" id="fileInput" accept=".txt">
-      </div>
+    <!-- Upload stays outside the resizable calendar box and is visible before a file is loaded. -->
+    <div class="file-zone" id="fileZone">
+      <div>Click here or drag & drop <strong>Your_data.txt</strong></div>
+      <input type="file" id="fileInput" accept=".txt">
+    </div>
 
+    <div class="card" id="calendarCard">
       <div class="calendar-panel">
         <div class="header">
           <div class="total">Total matches: <span id="totalMatches">0</span></div>
@@ -336,6 +357,7 @@
             <button type="button" class="theme-toggle" id="themeToggle" title="Cycle through CSRep, GitHub, Leetify, and Windows XP themes">Theme: CSRep</button>
             <label class="numbers-control"><input type="checkbox" id="numbersToggle"> Show numbers</label>
             <label class="numbers-control"><input type="checkbox" id="monthMarkersToggle"> Show month markers</label>
+            <label class="numbers-control"><input type="checkbox" id="separateYearsToggle"> Separate years</label>
           </div>
         </div>
 
@@ -367,6 +389,7 @@
     const fileInput = document.getElementById('fileInput');
     const themeToggle = document.getElementById('themeToggle');
     const monthMarkersToggle = document.getElementById('monthMarkersToggle');
+    const separateYearsToggle = document.getElementById('separateYearsToggle');
 
     const themeNames = ['CSRep', 'GitHub', 'Leetify', 'Windows XP'];
     let currentTheme = 0;
@@ -389,6 +412,10 @@
 
     monthMarkersToggle.addEventListener('change', () => {
       document.body.classList.toggle('hide-month-markers', !monthMarkersToggle.checked);
+    });
+
+    separateYearsToggle.addEventListener('change', () => {
+      if (loadedData) renderCalendar(loadedData);
     });
 
     fileZone.addEventListener('click', () => fileInput.click());
@@ -433,7 +460,7 @@
         loadedData = data;
         renderCalendar(data);
         fileZone.style.display = "none";
-        document.querySelector('.card').classList.add('loaded');
+        document.getElementById('calendarCard').classList.add('loaded');
       };
       reader.readAsText(file);
     }
@@ -461,9 +488,34 @@
       return 5;
     }
 
-    function renderCalendar(data) {
-      const grid = document.getElementById("grid");
-      const monthsRow = document.getElementById("monthsRow");
+    function renderCalendar(data, targetArea = null) {
+      const mainArea = document.querySelector('#calendarCard .calendar-area');
+      if (!targetArea && separateYearsToggle.checked) {
+        const years = [...new Set(Object.keys(data).map(d => d.slice(0, 4)))].sort();
+        mainArea.innerHTML = '';
+        years.forEach(year => {
+          const yearData = Object.fromEntries(Object.entries(data).filter(([date]) => date.startsWith(year + '-')));
+          const section = document.createElement('section');
+          section.className = 'year-section';
+          const heading = document.createElement('h2');
+          heading.className = 'year-heading';
+          heading.textContent = year;
+          const area = document.createElement('div');
+          area.className = 'calendar-area';
+          area.innerHTML = '<div class="months-row"></div><div class="calendar-wrapper"><div class="days-label"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div><div class="grid"></div></div>';
+          section.append(heading, area);
+          mainArea.appendChild(section);
+          renderCalendar(yearData, area);
+        });
+        document.getElementById('totalMatches').textContent = Object.values(data).reduce((sum, count) => sum + count, 0);
+        return;
+      }
+      if (!targetArea) {
+        mainArea.innerHTML = '<div class="months-row" id="monthsRow"></div><div class="calendar-wrapper"><div class="days-label"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div><div id="grid" class="grid"></div></div>';
+      }
+      const root = targetArea || mainArea;
+      const grid = root.querySelector('.grid');
+      const monthsRow = root.querySelector('.months-row');
       const tooltip = document.getElementById("tooltip");
 
       grid.innerHTML = "";
@@ -474,15 +526,34 @@
 
       const minDate = new Date(Math.min(...dates));
       const maxDate = new Date(Math.max(...dates));
+      const isSplitYearCalendar = Boolean(targetArea && separateYearsToggle.checked);
 
-      const start = new Date(minDate);
-      start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
-
-      const end = new Date(maxDate);
-      end.setDate(end.getDate() + (7 - end.getDay()) % 7);
+      let start;
+      let end;
+      if (isSplitYearCalendar) {
+        // In split mode, show only dates belonging to this calendar year.
+        // Blank cells preserve weekday alignment without duplicating dates
+        // from the previous or following year.
+        const year = minDate.getFullYear();
+        start = new Date(year, 0, 1, 12);
+        end = new Date(year, 11, 31, 12);
+      } else {
+        start = new Date(minDate);
+        start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+        end = new Date(maxDate);
+        end.setDate(end.getDate() + (7 - end.getDay()) % 7);
+      }
 
       let current = new Date(start);
       let weekIndex = 0;
+      if (isSplitYearCalendar) {
+        const leadingBlanks = (start.getDay() + 6) % 7;
+        for (let i = 0; i < leadingBlanks; i++) {
+          const blank = document.createElement('div');
+          blank.className = 'cell empty-cell';
+          grid.appendChild(blank);
+        }
+      }
       let total = 0;
       const monthStarts = [];
       let lastMonth = -1;
@@ -500,7 +571,9 @@
           if (current.getDate() <= 7) {
             monthStarts.push({
               weekIndex: weekIndex,
-              label: current.toLocaleString("default", { month: "short", year: "2-digit" })
+              label: isSplitYearCalendar
+                ? current.toLocaleString("default", { month: "long" })
+                : current.toLocaleString("default", { month: "short", year: "2-digit" })
             });
           }
           lastMonth = m;
@@ -532,6 +605,14 @@
 
         current.setDate(current.getDate() + 1);
         if (current.getDay() === 1) weekIndex++;
+      }
+      if (isSplitYearCalendar) {
+        const trailingBlanks = (7 - ((end.getDay() + 6) % 7) - 1 + 7) % 7;
+        for (let i = 0; i < trailingBlanks; i++) {
+          const blank = document.createElement('div');
+          blank.className = 'cell empty-cell';
+          grid.appendChild(blank);
+        }
       }
 
       // Draw month markers using measured cell positions, so they stay aligned
@@ -569,8 +650,7 @@
       requestAnimationFrame(positionMonthDividers);
       if (!window.monthDividerResizeHandler) {
         window.monthDividerResizeHandler = () => requestAnimationFrame(() => {
-          const activeGrid = document.querySelector('.grid');
-          if (!activeGrid) return;
+          document.querySelectorAll('.grid').forEach(activeGrid => {
           activeGrid.querySelectorAll('.month-divider').forEach(line => line.remove());
           const gridRect = activeGrid.getBoundingClientRect();
           const cells = Array.from(activeGrid.children).filter(el => el.classList.contains('cell'));
@@ -592,6 +672,7 @@
               activeGrid.appendChild(line);
             }
           });
+          });
         });
         window.addEventListener('resize', window.monthDividerResizeHandler);
       }
@@ -606,7 +687,7 @@
         monthsRow.appendChild(label);
       });
 
-      document.getElementById("totalMatches").textContent = total;
+      if (!targetArea) document.getElementById("totalMatches").textContent = total;
     }
   </script>
 </body>
