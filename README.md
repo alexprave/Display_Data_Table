@@ -4,9 +4,6 @@ A contribution-style calendar that visualizes your CS2 match history, inspired b
 
 ## Screenshots
 
-> Replace the placeholders below with screenshots of your own calendar. You can keep multiple screenshots to show the different themes and views.
-
-
 ### Month view
 <img width="1204" height="1079" alt="Image" src="https://github.com/user-attachments/assets/00005985-ba9c-4f0b-848f-99e7d44162cb" />
 
