@@ -3,7 +3,8 @@
 A contribution-style calendar that visualizes your CS2 match history, inspired by activity graphs from CSRep.gg and GitHub.
 
 ## Screenshots
-###Require only a SteamID64.
+
+### Require only a SteamID64.
 <img width="639" height="370" alt="Image" src="https://github.com/user-attachments/assets/9366eb69-6a1a-4b4a-88ef-3eb01db437ce" />
 
 ### Month view
