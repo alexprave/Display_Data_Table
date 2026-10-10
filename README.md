@@ -2,7 +2,12 @@
 
 A simple, offline contribution-style calendar that visualizes your CS2 match history.
 
+
+Even made a GitHub theme :)
+<img width="1200" height="247" alt="Image" src="https://github.com/user-attachments/assets/c73147d1-1767-40dd-8319-c398c4653a2f" />
+
 Inspired by CSRep.gg activity graphs.
+<img width="1200" height="247" alt="Image" src="https://github.com/user-attachments/assets/3e86fd07-7b70-4dab-a7ef-4a45f76d82d8" />
 
 ---
 
@@ -77,3 +82,5 @@ If you already have an Excel/Google Sheet with columns `Date` and `Matches`:
 Made for personal use.  
 Enjoy tracking your grind.
 
+This is how it looks in your Browser
+<img width="1273" height="367" alt="Image" src="https://github.com/user-attachments/assets/f2d00203-4d0d-44ee-bbc5-85288f454bed" />
