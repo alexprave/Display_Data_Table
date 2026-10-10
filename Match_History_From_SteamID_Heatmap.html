@@ -336,6 +336,7 @@
       transition: opacity 0.15s;
       z-index: 100;
       white-space: nowrap;
+      text-align: center;
       border: 1px solid #374151;
     }
 
@@ -622,6 +623,8 @@
         secondAccountToggle.setAttribute('aria-pressed', 'false');
         renderCalendar(loadedData);
         fileZone.style.display = 'none';
+        const exporterPanel = document.getElementById('exporterPanel');
+        if (exporterPanel) exporterPanel.style.display = 'none';
         document.getElementById('calendarCard').classList.add('loaded');
       };
 
@@ -723,10 +726,11 @@
                 number.textContent = count;
                 cell.appendChild(number);
               }
-              cell.title = `${date}: ${count} match${count !== 1 ? 'es' : ''}`;
+              const prettyDate = new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+              cell.title = `${prettyDate}: ${count} match${count !== 1 ? 'es' : ''}`;
               cell.addEventListener('mouseenter', e => {
                 tooltip.style.opacity = '1';
-                tooltip.textContent = `${date}: ${count} match${count !== 1 ? 'es' : ''}`;
+                tooltip.innerHTML = `<strong>${prettyDate}</strong><br>${count} match${count !== 1 ? 'es' : ''}`;
                 tooltip.style.left = (e.clientX + 14) + 'px';
                 tooltip.style.top = (e.clientY - 36) + 'px';
               });
@@ -850,9 +854,11 @@
           cell.appendChild(number);
         }
 
+        const prettyDate = new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+        cell.title = `${prettyDate}: ${count} match${count !== 1 ? 'es' : ''}`;
         cell.addEventListener("mouseenter", (e) => {
           tooltip.style.opacity = "1";
-          tooltip.textContent = `${dateStr}: ${count} match${count !== 1 ? "es" : ""}`;
+          tooltip.innerHTML = `<strong>${prettyDate}</strong><br>${count} match${count !== 1 ? 'es' : ''}`;
           tooltip.style.left = (e.clientX + 14) + "px";
           tooltip.style.top = (e.clientY - 36) + "px";
         });
@@ -990,7 +996,7 @@
       setStatus('Looking up available reports for SteamID64 ' + steamId + '…');
       const available = await getJson(API + '/available-progress-reports/' + encodeURIComponent(steamId));
       if (!Array.isArray(available)) throw new Error('Leetify returned an unexpected report-list format.');
-      const reports = available.filter(r => r && Number.isInteger(Number(r.year)) && r.quarter && String(r.id || steamId) === steamId)
+      const reports = available.filter(r => r && Number.isInteger(Number(r.year)) && r.quarter)
         .sort((a,b) => Number(a.year)-Number(b.year) || String(a.quarter).localeCompare(String(b.quarter)));
       if (!reports.length) throw new Error('Leetify did not list any public reports for that profile.');
       setStatus('Found ' + reports.length + ' reports. Reading timestamps…');
