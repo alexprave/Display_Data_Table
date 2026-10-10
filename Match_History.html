@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Match Activity Calendar</title>
+  <style>
+    :root {
+      --bg: #10171B;
+      --card: #10171B;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --border: #30363d;
+      --header-accent: #0DF699;
+      --month-line: #0DF699;
+      --calendar-bg: #171A21;
+      --c0: #161E22;
+      --c1: #0F4E3A;
+      --c2: #0E8F5F;
+      --c3: #0E8F5F;
+      --c5: #0DF397;
+    }
+
+    /* GitHub palette */
+    body.github-theme {
+      --header-accent: #1F6FEB;
+      --month-line: #1F6FEB;
+      --calendar-bg: #0D1117;
+      --c0: #151B23;
+      --c1: #033A16;
+      --c2: #196C2E;
+      --c3: #2EA043;
+      --c5: #2EA043;
+    }
+
+    /* Leetify palette */
+    body.leetify-theme {
+      --header-accent: #F84982;
+      --month-line: #F84982;
+      --calendar-bg: #201E25;
+      --c0: #2A2631;
+      --c1: #40305F;
+      --c2: #5D3D8A;
+      --c3: #987AC6;
+      --c5: #D5C8E9;
+    }
+
+    /* Windows XP Explorer palette */
+    body.xp-theme {
+      --header-accent: #99B4D1;
+      --month-line: #0078D7;
+      --calendar-bg: #000000;
+      --c0: #1C1C1C;
+      --c1: #8A8A8A;
+      --c2: #C8C8C8;
+      --c3: #E3E3E3;
+      --c5: #D7E4F2;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .theme-toggle {
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      border-radius: 7px;
+      padding: 8px 12px;
+      font: inherit;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    .theme-toggle:hover {
+      border-color: var(--c2);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      padding: 24px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin-bottom: 16px;
+      font-size: 0.95rem;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      overflow-x: auto;
+    }
+
+    /* Once data is loaded, let the themed calendar fill the card edge-to-edge. */
+    .card.loaded {
+      padding: 0;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .total {
+      font-size: 1.1rem;
+    }
+
+    .total span {
+      font-weight: 700;
+      color: var(--header-accent);
+    }
+
+    /* File loader */
+    .file-zone {
+      border: 2px dashed #30363d;
+      border-radius: 10px;
+      padding: 18px;
+      text-align: center;
+      margin-bottom: 20px;
+      cursor: pointer;
+      transition: 0.2s;
+      color: var(--muted);
+    }
+    .file-zone:hover, .file-zone.dragover {
+      border-color: #0E8F5F;
+      background: rgba(14, 143, 95, 0.08);
+      color: #fff;
+    }
+    .file-zone input {
+      display: none;
+    }
+
+    .calendar-panel {
+      background: var(--calendar-bg);
+      border-radius: 0 0 11px 11px;
+      padding: 20px;
+      /* Full-bleed theme background, edge-to-edge inside the outer card border */
+      margin: 0 -20px -20px;
+    }
+
+    .card.loaded .calendar-panel {
+      margin: 0;
+      border-radius: 11px;
+    }
+
+    .calendar-area {
+      background: transparent;
+      padding: 0;
+      overflow-x: auto;
+    }
+
+    .calendar-wrapper {
+      display: flex;
+      gap: 10px;
+    }
+
+    .days-label {
+      display: grid;
+      grid-template-rows: repeat(7, 15px);
+      row-gap: 3px;
+      align-content: start;
+      font-size: 0.7rem;
+      color: var(--muted);
+      width: 28px;
+      flex-shrink: 0;
+    }
+
+    .days-label span {
+      height: 15px;
+      line-height: 15px;
+    }
+
+    .months-row {
+      display: flex;
+      margin-left: 38px;
+      margin-bottom: 6px;
+      height: 20px;
+      position: relative;
+    }
+
+    .month-label {
+      position: absolute;
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .grid {
+      display: grid;
+      grid-auto-flow: column;
+      grid-template-rows: repeat(7, 15px);
+      gap: 3px;
+      position: relative;
+    }
+
+    .month-divider {
+      position: absolute;
+      width: 1px;
+      background: var(--month-line);
+      pointer-events: none;
+      z-index: 2;
+      opacity: 0.9;
+    }
+
+    /* Mark only the first day of each month, tightly around the cell. */
+    .cell.month-start {
+      outline: 1px solid var(--month-line);
+      outline-offset: 0;
+    }
+
+    body.hide-month-markers .month-divider { display: none; }
+    body.hide-month-markers .cell.month-start { outline-color: transparent; }
+
+    .cell {
+      width: 15px;
+      height: 15px;
+      border-radius: 3px;
+      background: var(--c0);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: 600;
+      color: #000;
+      cursor: default;
+      transition: transform 0.12s;
+    }
+
+    .cell:hover {
+      transform: scale(1.3);
+      z-index: 5;
+      outline: 1px solid #fff;
+    }
+
+    .cell.level-0 { background: var(--c0); color: #fff; }
+    .cell.level-1 { background: var(--c1); color: #fff; }
+    .cell.level-2 { background: var(--c2); color: #fff; }
+    .cell.level-3 { background: var(--c3); color: #fff; }
+    .cell.level-5 { background: var(--c5); color: #000; }
+
+    body.github-theme .cell,
+    body.leetify-theme .cell,
+    body.xp-theme .cell { border-radius: 3px; }
+
+    /* Dark text keeps the lighter Windows XP levels readable when numbers are enabled. */
+    body.xp-theme .cell.level-1,
+    body.xp-theme .cell.level-2,
+    body.xp-theme .cell.level-3,
+    body.xp-theme .cell.level-5 { color: #111; }
+
+    .numbers-control {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 0.85rem;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+    .numbers-control input { accent-color: var(--c5); cursor: pointer; }
+    body.hide-numbers .cell { color: transparent !important; }
+
+    .tooltip {
+      position: fixed;
+      background: #1f2937;
+      color: white;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+      z-index: 100;
+      white-space: nowrap;
+      border: 1px solid #374151;
+    }
+
+    @media (max-width: 800px) {
+      .cell { width: 12px; height: 12px; font-size: 8px; }
+      .grid { gap: 2px; }
+      .days-label {
+        grid-template-rows: repeat(7, 12px);
+        row-gap: 2px;
+      }
+      .days-label span {
+        height: 12px;
+        line-height: 12px;
+      }
+    }
+  </style>
+</head>
+<body class="hide-numbers hide-month-markers">
+  <div class="container">
+    <h1>Match Activity History</h1>
+    <p class="subtitle">Just like on CSRep.gg History Visualizer for no apparent reason <3 </p>
+
+    <div class="card">
+      <!-- FILE LOADER -->
+      <div class="file-zone" id="fileZone">
+        <div>Click here or drag & drop <strong>Your_data.txt</strong></div>
+        <input type="file" id="fileInput" accept=".txt">
+      </div>
+
+      <div class="calendar-panel">
+        <div class="header">
+          <div class="total">Total matches: <span id="totalMatches">0</span></div>
+          <div class="header-actions">
+            <button type="button" class="theme-toggle" id="themeToggle" title="Cycle through CSRep, GitHub, Leetify, and Windows XP themes">Theme: CSRep</button>
+            <label class="numbers-control"><input type="checkbox" id="numbersToggle"> Show numbers</label>
+            <label class="numbers-control"><input type="checkbox" id="monthMarkersToggle"> Show month markers</label>
+          </div>
+        </div>
+
+        <div class="calendar-area">
+        <div class="months-row" id="monthsRow"></div>
+
+        <div class="calendar-wrapper">
+          <div class="days-label">
+            <span>Mon</span>
+            <span>Tue</span>
+            <span>Wed</span>
+            <span>Thu</span>
+            <span>Fri</span>
+            <span>Sat</span>
+            <span>Sun</span>
+          </div>
+          <div id="grid" class="grid"></div>
+        </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="tooltip" id="tooltip"></div>
+
+  <script>
+    const fileZone = document.getElementById('fileZone');
+    const fileInput = document.getElementById('fileInput');
+    const themeToggle = document.getElementById('themeToggle');
+    const monthMarkersToggle = document.getElementById('monthMarkersToggle');
+
+    const themeNames = ['CSRep', 'GitHub', 'Leetify', 'Windows XP'];
+    let currentTheme = 0;
+    let loadedData = null;
+    themeToggle.addEventListener('click', () => {
+      currentTheme = (currentTheme + 1) % themeNames.length;
+      document.body.classList.remove('github-theme', 'leetify-theme', 'xp-theme');
+      if (themeNames[currentTheme] === 'GitHub') document.body.classList.add('github-theme');
+      if (themeNames[currentTheme] === 'Leetify') document.body.classList.add('leetify-theme');
+      if (themeNames[currentTheme] === 'Windows XP') document.body.classList.add('xp-theme');
+      themeToggle.textContent = `Theme: ${themeNames[currentTheme]}`;
+      themeToggle.setAttribute('aria-label', `Current theme: ${themeNames[currentTheme]}. Click to switch theme.`);
+      if (loadedData) renderCalendar(loadedData);
+    });
+
+    const numbersToggle = document.getElementById('numbersToggle');
+    numbersToggle.addEventListener('change', () => {
+      document.body.classList.toggle('hide-numbers', !numbersToggle.checked);
+    });
+
+    monthMarkersToggle.addEventListener('change', () => {
+      document.body.classList.toggle('hide-month-markers', !monthMarkersToggle.checked);
+    });
+
+    fileZone.addEventListener('click', () => fileInput.click());
+
+    fileZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      fileZone.classList.add('dragover');
+    });
+    fileZone.addEventListener('dragleave', () => {
+      fileZone.classList.remove('dragover');
+    });
+    fileZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      fileZone.classList.remove('dragover');
+      if (e.dataTransfer.files.length) {
+        handleFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length) {
+        handleFile(fileInput.files[0]);
+      }
+    });
+
+    function handleFile(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target.result;
+        const data = {};
+
+        text.split('\n').forEach(line => {
+          line = line.trim();
+          if (!line || line.startsWith('//') || line.startsWith('const')) return;
+
+          const match = line.match(/"?(\d{4}-\d{2}-\d{2})"?\s*:\s*(\d+)/);
+          if (match) {
+            data[match[1]] = parseInt(match[2]);
+          }
+        });
+
+        loadedData = data;
+        renderCalendar(data);
+        fileZone.style.display = "none";
+        document.querySelector('.card').classList.add('loaded');
+      };
+      reader.readAsText(file);
+    }
+
+    function getLevel(count) {
+      if (count === 0) return 0;
+      if (count === 1) return 1;
+
+      // Leetify: 0, 1, 2–3, 4–5, 6+
+      if (themeNames[currentTheme] === 'Leetify') {
+        if (count <= 3) return 2;
+        if (count <= 5) return 3;
+        return 5;
+      }
+
+      // GitHub and Windows XP: 0, 1, 2, 3, 4+
+      if (themeNames[currentTheme] === 'GitHub' || themeNames[currentTheme] === 'Windows XP') {
+        if (count === 2) return 2;
+        if (count === 3) return 3;
+        return 5;
+      }
+
+      // CSRep original: 0, 1, 2–4, 5+
+      if (count <= 4) return 2;
+      return 5;
+    }
+
+    function renderCalendar(data) {
+      const grid = document.getElementById("grid");
+      const monthsRow = document.getElementById("monthsRow");
+      const tooltip = document.getElementById("tooltip");
+
+      grid.innerHTML = "";
+      monthsRow.innerHTML = "";
+
+      const dates = Object.keys(data).map(d => new Date(d + "T12:00:00"));
+      if (dates.length === 0) return;
+
+      const minDate = new Date(Math.min(...dates));
+      const maxDate = new Date(Math.max(...dates));
+
+      const start = new Date(minDate);
+      start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+
+      const end = new Date(maxDate);
+      end.setDate(end.getDate() + (7 - end.getDay()) % 7);
+
+      let current = new Date(start);
+      let weekIndex = 0;
+      let total = 0;
+      const monthStarts = [];
+      let lastMonth = -1;
+      let lastYear = -1;
+
+      while (current <= end) {
+        const dateStr = current.toISOString().slice(0, 10);
+        const count = data[dateStr] || 0;
+        total += count;
+
+        const m = current.getMonth();
+        const y = current.getFullYear();
+
+        if (m !== lastMonth || y !== lastYear) {
+          if (current.getDate() <= 7) {
+            monthStarts.push({
+              weekIndex: weekIndex,
+              label: current.toLocaleString("default", { month: "short", year: "2-digit" })
+            });
+          }
+          lastMonth = m;
+          lastYear = y;
+        }
+        const cell = document.createElement("div");
+        cell.className = `cell level-${getLevel(count)}`;
+        if (current.getDate() === 1) {
+          cell.classList.add("month-start");
+
+        }
+        if (count >= 1) {
+          const number = document.createElement("span");
+          number.textContent = count;
+          cell.appendChild(number);
+        }
+
+        cell.addEventListener("mouseenter", (e) => {
+          tooltip.style.opacity = "1";
+          tooltip.textContent = `${dateStr}: ${count} match${count !== 1 ? "es" : ""}`;
+          tooltip.style.left = (e.clientX + 14) + "px";
+          tooltip.style.top = (e.clientY - 36) + "px";
+        });
+        cell.addEventListener("mouseleave", () => {
+          tooltip.style.opacity = "0";
+        });
+
+        grid.appendChild(cell);
+
+        current.setDate(current.getDate() + 1);
+        if (current.getDay() === 1) weekIndex++;
+      }
+
+      // Draw month markers using measured cell positions, so they stay aligned
+      // at browser zoom levels and across responsive cell sizes.
+      function positionMonthDividers() {
+        grid.querySelectorAll('.month-divider').forEach(line => line.remove());
+        const gridRect = grid.getBoundingClientRect();
+        const cells = Array.from(grid.children).filter(el => el.classList.contains('cell'));
+        cells.forEach(cell => {
+          if (!cell.classList.contains('month-start')) return;
+          const rect = cell.getBoundingClientRect();
+          const left = rect.left - gridRect.left;
+          const right = rect.right - gridRect.left;
+          const top = rect.top - gridRect.top;
+          const bottom = rect.bottom - gridRect.top;
+          const height = gridRect.height;
+          if (top > 0.5) {
+            const line = document.createElement('div');
+            line.className = 'month-divider';
+            line.style.left = (right + (window.matchMedia('(max-width: 600px)').matches ? 0.5 : 0.5)) + 'px';
+            line.style.top = '0px';
+            line.style.height = top + 'px';
+            grid.appendChild(line);
+          }
+          if (bottom < height - 0.5) {
+            const line = document.createElement('div');
+            line.className = 'month-divider';
+            line.style.left = (left - (window.matchMedia('(max-width: 600px)').matches ? 2 : 2.5)) + 'px';
+            line.style.top = bottom + 'px';
+            line.style.height = (height - bottom) + 'px';
+            grid.appendChild(line);
+          }
+        });
+      }
+      requestAnimationFrame(positionMonthDividers);
+      if (!window.monthDividerResizeHandler) {
+        window.monthDividerResizeHandler = () => requestAnimationFrame(() => {
+          const activeGrid = document.querySelector('.grid');
+          if (!activeGrid) return;
+          activeGrid.querySelectorAll('.month-divider').forEach(line => line.remove());
+          const gridRect = activeGrid.getBoundingClientRect();
+          const cells = Array.from(activeGrid.children).filter(el => el.classList.contains('cell'));
+          cells.forEach(cell => {
+            if (!cell.classList.contains('month-start')) return;
+            const rect = cell.getBoundingClientRect();
+            const left = rect.left - gridRect.left;
+            const right = rect.right - gridRect.left;
+            const top = rect.top - gridRect.top;
+            const bottom = rect.bottom - gridRect.top;
+            if (top > 0.5) {
+              const line = document.createElement('div'); line.className = 'month-divider';
+              line.style.left = (right + (window.matchMedia('(max-width: 600px)').matches ? 0.5 : 0.5)) + 'px'; line.style.top = '0px'; line.style.height = top + 'px';
+              activeGrid.appendChild(line);
+            }
+            if (bottom < gridRect.height - 0.5) {
+              const line = document.createElement('div'); line.className = 'month-divider';
+              line.style.left = (left - (window.matchMedia('(max-width: 600px)').matches ? 2 : 2.5)) + 'px'; line.style.top = bottom + 'px'; line.style.height = (gridRect.height - bottom) + 'px';
+              activeGrid.appendChild(line);
+            }
+          });
+        });
+        window.addEventListener('resize', window.monthDividerResizeHandler);
+      }
+
+      // Month labels
+      const cellWidth = 18;
+      monthStarts.forEach(m => {
+        const label = document.createElement("div");
+        label.className = "month-label";
+        label.textContent = m.label;
+        label.style.left = (m.weekIndex * cellWidth) + "px";
+        monthsRow.appendChild(label);
+      });
+
+      document.getElementById("totalMatches").textContent = total;
+    }
+  </script>
+</body>
+</html>
