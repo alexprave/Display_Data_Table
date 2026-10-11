@@ -7,13 +7,16 @@ A contribution-style calendar that visualizes your CS2 match history, inspired b
 ## Screenshots
 
 ### Require only a SteamID64.
-<img width="639" height="370" alt="Image" src="https://github.com/user-attachments/assets/9366eb69-6a1a-4b4a-88ef-3eb01db437ce" />
+<img width="602" height="486" alt="Image" src="https://github.com/user-attachments/assets/e31f76dd-4092-4486-9639-194ebc93e123" />
+
+### Game type Filters (even for HLTV pro matches)
+<img width="1238" height="508" alt="Image" src="https://github.com/user-attachments/assets/8c78714d-8841-4a51-9b6b-e0cfbe6ca375" />
 
 ### Month view
 <img width="1204" height="1079" alt="Image" src="https://github.com/user-attachments/assets/00005985-ba9c-4f0b-848f-99e7d44162cb" />
 
 ### Years view
-<img width="1206" height="719" alt="Image" src="https://github.com/user-attachments/assets/2315e2d0-e6cb-412b-a557-9c6b261c9de9" />
+<img width="1210" height="717" alt="Image" src="https://github.com/user-attachments/assets/e33ea6a5-da88-4936-9f6c-063b809249ca" />
 
 ### Themes
 <img width="1202" height="1055" alt="Image" src="https://github.com/user-attachments/assets/44478f31-a7cf-4938-924e-fd7cefffc446" />
@@ -32,6 +35,7 @@ A contribution-style calendar that visualizes your CS2 match history, inspired b
 - **Multiple themes** — CSRep, GitHub, Leetify, and Windows XP.
 - **Second-account support** — when second-account data is available, toggle it to include those matches in the calendar.
 - **Hover details** — hover over a cell to see its date and match count.
+- <img width="169" height="81" alt="Image" src="https://github.com/user-attachments/assets/94ad7d1a-61d4-405d-89b8-27d450af92cb" />
 - **Resizable calendar** — resize the calendar area to suit your screen.
 - **Drag and drop** — drop a supported data file into the upload area, or click to select it. After loading, the upload area hides and the calendar is shown.
 
@@ -46,7 +50,41 @@ The calendar supports these formats:
 
 ### TXT format
 
-For plain-text files, use one day per line:
+The exported `.txt` file uses a **tab-separated table**, with one row per day.
+
+```text
+date	main-account	Premier	Competitive	Wingman	Faceit	HLTV
+2025-09-13	2	2	0	0	0	0
+2025-09-15	1	0	1	0	0	0
+2025-10-05	6	4	0	2	0	0
+2026-01-19	15	10	3	2	0	0
+2026-03-12	4	2	0	0	2	0
+```
+
+### Columns
+
+* `date` — Match date in `YYYY-MM-DD` format.
+* `main-account` — Total matches across all included categories for that day.
+* `Premier` — Premier matches.
+* `Competitive` — Competitive matches.
+* `Wingman` — Wingman matches.
+* `Faceit` — Faceit matches.
+* `HLTV` — HLTV matches.
+
+**Note:** The example above is illustrative. The actual export includes the categories available in the source data. The `main-account` value is the combined total of the category counts for that day.
+
+### Importing the File
+
+1. Open the heatmap HTML file.
+2. Upload the exported `.txt` file.
+3. The calendar initially displays **All Matches**.
+4. Use the category button to cycle through **All Matches** and the available individual categories.
+
+CSV, TSV, and XLSX files with compatible date, total, and category columns are also supported.
+
+### Legacy TXT Format
+
+The older plain-text format is still supported for files that contain only daily totals:
 
 ```text
 2025-09-13: 2
@@ -55,6 +93,9 @@ For plain-text files, use one day per line:
 2026-01-19: 15
 2026-03-12: 4
 ```
+
+Legacy files display the overall match counts, but cannot be filtered by category because they do not contain category-specific data.
+
 
 - Dates must use `YYYY-MM-DD`.
 - Put the number of matches after the colon.
