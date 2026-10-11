@@ -1,6 +1,6 @@
 # CS2 Match Activity Calendar
 
-Try here for free > [CS2 Heatmap](https://counter-strike-heatmap.netlify.app/)
+Try here for free > [CS2 Heatmap](https://counter-strike-heatmap-v2.netlify.app/)
 
 A contribution-style calendar that visualizes your CS2 match history, inspired by activity graphs from CSRep.gg and GitHub.
 
