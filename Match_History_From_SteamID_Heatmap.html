@@ -91,7 +91,6 @@
     .numbers-control:hover { border-color: var(--header-accent); }
     .theme-toggle:focus-visible,
     .numbers-control:focus-within { outline: 2px solid var(--header-accent); outline-offset: 2px; }
-    .account-toggle[hidden],
     .numbers-control[hidden] { display: none !important; }
     .theme-toggle.active,
     .numbers-control.active { background: var(--header-accent); border-color: var(--header-accent); color: #10171B; }
@@ -379,6 +378,8 @@
 #exporterPanel select{width:100%;background:#10171B;border:1px solid #30363d;color:var(--text);border-radius:9px;padding:12px;font:inherit}
 #exporterPanel .save-file-option{display:flex;align-items:center;gap:7px;margin-top:5px;font-size:13px;font-weight:400;color:var(--muted);cursor:pointer}
 #exporterPanel .save-file-option input{width:14px;height:14px;margin:0;padding:0;accent-color:#0DF699;cursor:pointer}
+#exporterPanel .range-note{margin-top:12px;padding:9px 12px;border-left:2px solid #0DF699;background:#141d20;border-radius:0 7px 7px 0;color:#aab6bd;font-size:12px;line-height:1.5}
+#exporterPanel .range-note a{display:inline-block;margin-left:4px;color:#0DF699;text-decoration:underline;text-underline-offset:2px}
 
 
 /* Compact, centered import area to match the reference layout. */
@@ -406,6 +407,7 @@
 <section id="exporterPanel" class="panel">
   <label for="profile">SteamID64 <span style="font-weight:400">works only if you have a Leetify account</span></label>
   <div class="input-row"><input id="profile" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="Enter your SteamID64"><button id="run" type="button">Load Matches</button></div>
+  <div class="range-note">Quarterly-report method: match history is limited to <strong>January 1, 2024 – September 30, 2026</strong>. <a href="https://counter-strike-heatmap-v2.netlify.app/" target="_blank" rel="noopener noreferrer">Want all available matches? Use the full version ↗</a></div>
   <label class="save-file-option" for="saveFile"><input id="saveFile" type="checkbox"> Save the data file</label>
   <div class="hint">Or skip this and upload a TXT, CSV, TSV, or XLSX file below.</div>
   <div id="status" class="export-status" role="status"></div>
@@ -422,8 +424,8 @@
         <div class="header">
           <div class="total">Total matches: <span id="totalMatches">0</span></div>
           <div class="header-actions">
+            <button type="button" class="theme-toggle" id="modeToggle" hidden title="Cycle between All Matches and available categories">All Matches</button>
             <button type="button" class="theme-toggle" id="themeToggle" title="Cycle through CSRep, GitHub, Leetify, and Windows XP themes">Theme: CSRep</button>
-            <button type="button" id="secondAccountToggle" class="theme-toggle account-toggle" hidden aria-pressed="false" title="Toggle second-account matches">2nd account: Off</button>
             <label class="numbers-control" aria-pressed="false"><input type="checkbox" id="numbersToggle"> Show numbers</label>
             <label class="numbers-control" aria-pressed="false"><input type="checkbox" id="monthMarkersToggle"> Show month markers</label>
             <label class="numbers-control" aria-pressed="false"><input type="checkbox" id="separateYearsToggle"> Years view</label>
@@ -465,30 +467,37 @@
     const themeNames = ['CSRep', 'GitHub', 'Leetify', 'Windows XP'];
     let currentTheme = 0;
     let loadedData = null;
-    let primaryData = null;
-    let secondAccountData = {};
-    let secondAccountIncluded = false;
-    const secondAccountToggle = document.getElementById('secondAccountToggle');
+    let activitySeries = null;
+    let activeMode = 'all';
+    let activityDates = [];
+    const modeToggle = document.getElementById('modeToggle');
+    const activityModes = [
+      { key: 'premier', label: 'Premier', headers: ['premier'] },
+      { key: 'competitive', label: 'Competitive', headers: ['competitive'] },
+      { key: 'wingman', label: 'Wingman', headers: ['wingman'] },
+      { key: 'faceit', label: 'Faceit', headers: ['faceit'] },
+      { key: 'hltv', label: 'HLTV', headers: ['hltv'] }
+    ];
 
-    secondAccountToggle.addEventListener('click', () => {
-      if (!primaryData || !Object.keys(secondAccountData).length) return;
-      secondAccountIncluded = !secondAccountIncluded;
-      loadedData = combineAccountData();
-      secondAccountToggle.textContent = secondAccountIncluded ? '2nd account: On' : '2nd account: Off';
-      secondAccountToggle.classList.toggle('active', secondAccountIncluded);
-      secondAccountToggle.setAttribute('aria-pressed', String(secondAccountIncluded));
+    function applyActivityMode() {
+      if (!activitySeries || !activityDates.length) return;
+      const keys = activeMode === 'all' ? activityModes.filter(m => Array.isArray(activitySeries[m.key])).map(m => m.key) : [activeMode];
+      const data = {};
+      activityDates.forEach((date, i) => {
+        data[date] = keys.reduce((sum, key) => sum + (Number(activitySeries[key]?.[i]) || 0), 0);
+      });
+      loadedData = data;
+      modeToggle.textContent = activeMode === 'all' ? 'All Matches' : (activityModes.find(m => m.key === activeMode)?.label || 'All Matches');
       renderCalendar(loadedData);
-    });
-
-    function combineAccountData() {
-      const combined = { ...(primaryData || {}) };
-      if (secondAccountIncluded) {
-        Object.entries(secondAccountData).forEach(([date, count]) => {
-          combined[date] = (combined[date] || 0) + count;
-        });
-      }
-      return combined;
     }
+
+    modeToggle.addEventListener('click', () => {
+      if (!activitySeries) return;
+      const available = activityModes.filter(m => Array.isArray(activitySeries[m.key]));
+      const modes = ['all', ...available.map(m => m.key)];
+      activeMode = modes[(modes.indexOf(activeMode) + 1) % modes.length];
+      applyActivityMode();
+    });
 
     themeToggle.addEventListener('click', () => {
       currentTheme = (currentTheme + 1) % themeNames.length;
@@ -566,66 +575,71 @@
     function handleFile(file) {
       const isXlsx = /\.xlsx$/i.test(file.name);
       const processText = (text) => {
+        const lines = text.split(/\r?\n/).filter(line => line.trim() && !line.trim().startsWith('//') && !line.trim().startsWith('const'));
         const data = {};
-        const secondData = {};
+        const categoryRows = [];
+        let header = null;
+        let delimiter = /\.tsv$/i.test(file.name) ? '\t' : (lines.some(line => line.includes('\t')) ? '\t' : ',');
+        const splitFields = line => line.split(delimiter).map(field => field.trim().replace(/^"|"$/g, ''));
 
-        text.split(/\r?\n/).forEach(line => {
-          line = line.trim();
-          if (!line || line.startsWith('//') || line.startsWith('const')) return;
-
-          // Keep supporting the original TXT/JSON-like format: "YYYY-MM-DD": count
+        for (const line of lines) {
           const originalMatch = line.match(/"?(\d{4}-\d{2}-\d{2})"?\s*:\s*(\d+)/);
-          if (originalMatch) {
-            data[originalMatch[1]] = parseInt(originalMatch[2], 10);
-            return;
+          if (originalMatch) { data[originalMatch[1]] = parseInt(originalMatch[2], 10); continue; }
+          const fields = splitFields(line);
+          const normalized = fields.map(field => field.toLowerCase().replace(/[ _-]+/g, '').trim());
+          if (normalized.includes('date') && normalized.some(field => ['mainaccount','main','matches'].includes(field))) {
+            header = normalized;
+            continue;
           }
-
-          const delimiter = /\.tsv$/i.test(file.name) || line.includes('\t') ? '\t' : ',';
-          const fields = line.split(delimiter).map(field => field.trim().replace(/^"|"$/g, ''));
           let dateIndex = fields.findIndex(field => /^\d{4}-\d{2}-\d{2}$/.test(field));
-          // Accept common spreadsheet date display formats as well as ISO dates.
           if (dateIndex < 0) {
             dateIndex = fields.findIndex(field => /^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/.test(field));
             if (dateIndex >= 0) {
               const m = fields[dateIndex].match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
-              let year = Number(m[3]);
-              if (year < 100) year += year >= 70 ? 1900 : 2000;
-              // Interpret spreadsheet-style dates as month/day/year.
+              let year = Number(m[3]); if (year < 100) year += year >= 70 ? 1900 : 2000;
               fields[dateIndex] = `${year}-${String(Number(m[1])).padStart(2,'0')}-${String(Number(m[2])).padStart(2,'0')}`;
             }
           }
-          if (dateIndex < 0) return;
-
+          if (dateIndex < 0) continue;
           const date = fields[dateIndex];
           const mainField = fields[dateIndex + 1] ?? '';
-          const secondField = fields[dateIndex + 2] ?? '';
-          if (/^\d+$/.test(mainField)) {
-            data[date] = parseInt(mainField, 10);
-            if (fields.length > dateIndex + 2 && /^\d+$/.test(secondField)) {
-              secondData[date] = parseInt(secondField, 10);
-            }
-          } else {
-            for (let i = dateIndex - 1; i >= 0; i--) {
-              if (/^\d+$/.test(fields[i])) { data[date] = parseInt(fields[i], 10); break; }
-            }
+          if (/^\d+$/.test(mainField)) data[date] = parseInt(mainField, 10);
+          if (header) {
+            const row = { date, values: {} };
+            activityModes.forEach(mode => {
+              const idx = header.findIndex(h => mode.headers.includes(h));
+              if (idx >= 0 && /^\d+$/.test(fields[idx] ?? '')) row.values[mode.key] = Number(fields[idx]);
+            });
+            if (Object.keys(row.values).length) categoryRows.push(row);
           }
-        });
+        }
 
-        if (!Object.keys(data).length) {
-          alert('No date and match-count data found. Use YYYY-MM-DD dates and a numeric main-account column in TXT, CSV, TSV, or XLSX format.');
+        if (!Object.keys(data).length && !categoryRows.length) {
+          alert('No date and match-count data found. Use a supported TXT, CSV, TSV, or XLSX file.');
           return;
         }
 
-        primaryData = data;
-        secondAccountData = secondData;
-        secondAccountIncluded = false;
-        loadedData = combineAccountData();
-        const hasSecondAccountMatches = Object.values(secondAccountData).some(count => count > 0);
-        secondAccountToggle.hidden = !hasSecondAccountMatches;
-        secondAccountToggle.textContent = '2nd account: Off';
-        secondAccountToggle.classList.remove('active');
-        secondAccountToggle.setAttribute('aria-pressed', 'false');
-        renderCalendar(loadedData);
+        if (categoryRows.length) {
+          activityDates = [...new Set(categoryRows.map(row => row.date))].sort();
+          activitySeries = {};
+          activityModes.forEach(mode => {
+            if (categoryRows.some(row => Object.prototype.hasOwnProperty.call(row.values, mode.key))) {
+              activitySeries[mode.key] = activityDates.map(date => categoryRows.filter(row => row.date === date).reduce((sum, row) => sum + (Number(row.values[mode.key]) || 0), 0));
+            }
+          });
+          activeMode = 'all';
+          modeToggle.hidden = !Object.keys(activitySeries).length;
+          modeToggle.textContent = 'All Matches';
+          modeToggle.classList.remove('active');
+          applyActivityMode();
+        } else {
+          activitySeries = null;
+          activityDates = [];
+          activeMode = 'all';
+          modeToggle.hidden = true;
+          loadedData = data;
+          renderCalendar(loadedData);
+        }
         fileZone.style.display = 'none';
         const exporterPanel = document.getElementById('exporterPanel');
         if (exporterPanel) exporterPanel.style.display = 'none';
@@ -1018,7 +1032,12 @@
       }
       if (!unique.size) throw new Error('No match timestamps were found. ' + (errors.join(' | ') || 'The reports may contain no match activity.'));
       const counts = new Map();
-      for (const t of unique) { const day = localDate(t); counts.set(day, (counts.get(day)||0)+1); }
+      for (const t of unique) {
+        const day = localDate(t);
+        if (day < '2024-01-01' || day > '2026-09-30') continue;
+        counts.set(day, (counts.get(day)||0)+1);
+      }
+      if (!counts.size) throw new Error('Leetify reports were read, but no matches were found between January 1, 2024 and September 30, 2026.');
       const days = [...counts.keys()].sort(), format = 'txt';
       const rows = [['date','main-account'], ...days.map(day => [day, counts.get(day)])];
       const delimiter = format === 'csv' ? ',' : '\t';
