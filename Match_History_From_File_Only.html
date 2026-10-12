@@ -328,16 +328,29 @@
       position: fixed;
       background: #1f2937;
       color: white;
-      padding: 6px 10px;
+      padding: 7px 10px;
       border-radius: 6px;
       font-size: 0.8rem;
+      line-height: 1.35;
+      text-align: center;
       pointer-events: none;
       opacity: 0;
-      transition: opacity 0.15s;
+      transition: opacity 0.12s;
       z-index: 100;
       white-space: nowrap;
       border: 1px solid #374151;
+      box-shadow: 0 4px 12px rgba(0,0,0,.25);
+      transform: translate(-50%, calc(-100% - 10px));
     }
+    .tooltip-date { font-weight: 700; }
+    .tooltip-total { margin-top: 2px; }
+    .tooltip-separator {
+      height: 1px;
+      background: #64748b;
+      margin: 5px 0 4px;
+      opacity: .9;
+    }
+    .tooltip-breakdown { display: flex; flex-direction: column; align-items: center; }
 
     @media (max-width: 800px) {
       .cell { width: 12px; height: 12px; font-size: 8px; }
@@ -630,6 +643,24 @@
       return 5;
     }
 
+    function showMatchTooltip(tooltip, event, date, count) {
+      const parsed = new Date(date + 'T12:00:00');
+      const dateLabel = Number.isNaN(parsed.getTime())
+        ? date
+        : parsed.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      tooltip.innerHTML = '';
+      const dateLine = document.createElement('div');
+      dateLine.className = 'tooltip-date';
+      dateLine.textContent = dateLabel;
+      const totalLine = document.createElement('div');
+      totalLine.className = 'tooltip-total';
+      totalLine.textContent = `${count} match${count !== 1 ? 'es' : ''}`;
+      tooltip.append(dateLine, totalLine);
+      tooltip.style.left = `${event.clientX}px`;
+      tooltip.style.top = `${event.clientY}px`;
+      tooltip.style.opacity = '1';
+    }
+
     function renderMonthlyView(data, mainArea) {
       mainArea.innerHTML = '';
       const dates = Object.keys(data).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
@@ -672,12 +703,11 @@
                 number.textContent = count;
                 cell.appendChild(number);
               }
-              cell.title = `${date}: ${count} match${count !== 1 ? 'es' : ''}`;
               cell.addEventListener('mouseenter', e => {
-                tooltip.style.opacity = '1';
-                tooltip.textContent = `${date}: ${count} match${count !== 1 ? 'es' : ''}`;
-                tooltip.style.left = (e.clientX + 14) + 'px';
-                tooltip.style.top = (e.clientY - 36) + 'px';
+                showMatchTooltip(tooltip, e, date, count);
+              });
+              cell.addEventListener('mousemove', e => {
+                showMatchTooltip(tooltip, e, date, count);
               });
               cell.addEventListener('mouseleave', () => { tooltip.style.opacity = '0'; });
             }
@@ -800,10 +830,10 @@
         }
 
         cell.addEventListener("mouseenter", (e) => {
-          tooltip.style.opacity = "1";
-          tooltip.textContent = `${dateStr}: ${count} match${count !== 1 ? "es" : ""}`;
-          tooltip.style.left = (e.clientX + 14) + "px";
-          tooltip.style.top = (e.clientY - 36) + "px";
+          showMatchTooltip(tooltip, e, dateStr, count);
+        });
+        cell.addEventListener("mousemove", (e) => {
+          showMatchTooltip(tooltip, e, dateStr, count);
         });
         cell.addEventListener("mouseleave", () => {
           tooltip.style.opacity = "0";
