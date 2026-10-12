@@ -327,16 +327,24 @@
       position: fixed;
       background: #1f2937;
       color: white;
-      padding: 6px 10px;
+      padding: 8px 12px;
       border-radius: 6px;
       font-size: 0.8rem;
+      line-height: 1.45;
       pointer-events: none;
       opacity: 0;
-      transition: opacity 0.15s;
+      transition: opacity 0.12s;
       z-index: 100;
       white-space: nowrap;
       text-align: center;
       border: 1px solid #374151;
+      box-shadow: 0 5px 18px rgba(0,0,0,.3);
+    }
+    .tooltip-separator {
+      height: 1px;
+      background: #526174;
+      margin: 5px 0;
+      width: 100%;
     }
 
     @media (max-width: 800px) {
@@ -470,6 +478,7 @@
     let activitySeries = null;
     let activeMode = 'all';
     let activityDates = [];
+    let categoryCountsByDate = {};
     const modeToggle = document.getElementById('modeToggle');
     const activityModes = [
       { key: 'premier', label: 'Premier', headers: ['premier'] },
@@ -479,6 +488,32 @@
       { key: 'hltv', label: 'HLTV', headers: ['hltv'] }
     ];
 
+    function getMatchBreakdown(date) {
+      return activityModes
+        .filter(mode => Number(categoryCountsByDate[date]?.[mode.key]) > 0)
+        .map(mode => ({ label: mode.label, count: Number(categoryCountsByDate[date][mode.key]) }));
+    }
+
+    function buildTooltipHtml(prettyDate, count, date) {
+      const breakdown = getMatchBreakdown(date);
+      const rows = breakdown.length
+        ? `<div class="tooltip-separator"></div>${breakdown.map(item => `<div>${item.count} ${item.label}</div>`).join('')}`
+        : '';
+      return `<strong>${prettyDate}</strong><div>${count} match${count !== 1 ? 'es' : ''}</div>${rows}`;
+    }
+
+    function showCellTooltip(tooltip, event, prettyDate, count, date) {
+      tooltip.innerHTML = buildTooltipHtml(prettyDate, count, date);
+      tooltip.style.opacity = '1';
+      tooltip.style.left = '0px';
+      tooltip.style.top = '0px';
+      const rect = tooltip.getBoundingClientRect();
+      const left = Math.max(8, Math.min(event.clientX - rect.width / 2, window.innerWidth - rect.width - 8));
+      const top = Math.max(8, event.clientY - rect.height - 12);
+      tooltip.style.left = left + 'px';
+      tooltip.style.top = top + 'px';
+    }
+
     function applyActivityMode() {
       if (!activitySeries || !activityDates.length) return;
       const keys = activeMode === 'all' ? activityModes.filter(m => Array.isArray(activitySeries[m.key])).map(m => m.key) : [activeMode];
@@ -487,6 +522,13 @@
         data[date] = keys.reduce((sum, key) => sum + (Number(activitySeries[key]?.[i]) || 0), 0);
       });
       loadedData = data;
+      categoryCountsByDate = {};
+      activityDates.forEach((date, i) => {
+        categoryCountsByDate[date] = {};
+        activityModes.forEach(mode => {
+          if (Array.isArray(activitySeries[mode.key])) categoryCountsByDate[date][mode.key] = Number(activitySeries[mode.key][i]) || 0;
+        });
+      });
       modeToggle.textContent = activeMode === 'all' ? 'All Matches' : (activityModes.find(m => m.key === activeMode)?.label || 'All Matches');
       renderCalendar(loadedData);
     }
@@ -621,6 +663,13 @@
 
         if (categoryRows.length) {
           activityDates = [...new Set(categoryRows.map(row => row.date))].sort();
+          categoryCountsByDate = {};
+          categoryRows.forEach(row => {
+            categoryCountsByDate[row.date] = categoryCountsByDate[row.date] || {};
+            Object.entries(row.values).forEach(([key, value]) => {
+              categoryCountsByDate[row.date][key] = (categoryCountsByDate[row.date][key] || 0) + value;
+            });
+          });
           activitySeries = {};
           activityModes.forEach(mode => {
             if (categoryRows.some(row => Object.prototype.hasOwnProperty.call(row.values, mode.key))) {
@@ -635,6 +684,7 @@
         } else {
           activitySeries = null;
           activityDates = [];
+          categoryCountsByDate = {};
           activeMode = 'all';
           modeToggle.hidden = true;
           loadedData = data;
@@ -745,13 +795,8 @@
                 cell.appendChild(number);
               }
               const prettyDate = new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-              cell.title = `${prettyDate}: ${count} match${count !== 1 ? 'es' : ''}`;
-              cell.addEventListener('mouseenter', e => {
-                tooltip.style.opacity = '1';
-                tooltip.innerHTML = `<strong>${prettyDate}</strong><br>${count} match${count !== 1 ? 'es' : ''}`;
-                tooltip.style.left = (e.clientX + 14) + 'px';
-                tooltip.style.top = (e.clientY - 36) + 'px';
-              });
+              cell.removeAttribute('title');
+              cell.addEventListener('mouseenter', e => showCellTooltip(tooltip, e, prettyDate, count, date));
               cell.addEventListener('mouseleave', () => { tooltip.style.opacity = '0'; });
             }
             matrix.appendChild(cell);
@@ -873,13 +918,8 @@
         }
 
         const prettyDate = new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-        cell.title = `${prettyDate}: ${count} match${count !== 1 ? 'es' : ''}`;
-        cell.addEventListener("mouseenter", (e) => {
-          tooltip.style.opacity = "1";
-          tooltip.innerHTML = `<strong>${prettyDate}</strong><br>${count} match${count !== 1 ? 'es' : ''}`;
-          tooltip.style.left = (e.clientX + 14) + "px";
-          tooltip.style.top = (e.clientY - 36) + "px";
-        });
+        cell.removeAttribute("title");
+        cell.addEventListener("mouseenter", (e) => showCellTooltip(tooltip, e, prettyDate, count, dateStr));
         cell.addEventListener("mouseleave", () => {
           tooltip.style.opacity = "0";
         });
