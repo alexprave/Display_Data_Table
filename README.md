@@ -1,6 +1,10 @@
 # CS2 Match Activity Calendar
 
-Try here full version for free > [CS2 Heatmap](https://counter-strike-heatmap-v2.netlify.app/)
+Try here the full version for free > [CS2 Heatmap](https://counter-strike-heatmap-v2.netlify.app/)
+also the full version has multiple account support,
+You can paste as many steamid64's as u want its gonna process all of them,
+One by one and display all of them in the calendar Heatmap,
+There is a button where u can toggle them on and off
 
 A contribution-style calendar that visualizes your CS2 match history, inspired by activity graphs from CSRep.gg and GitHub.
 
