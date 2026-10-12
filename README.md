@@ -23,6 +23,13 @@ A contribution-style calendar that visualizes your CS2 match history, inspired b
 
 ---
 
+## Latest Updates
+
+### Added Matches Breakdown in the popup
+<img width="302" height="206" alt="Image" src="https://github.com/user-attachments/assets/783052fe-960c-41ed-9775-d1f7b3eb6d23" />
+
+---
+
 ## Features
 
 - **CS2 match activity data table** — see how many matches you played on each day.
@@ -34,8 +41,8 @@ A contribution-style calendar that visualizes your CS2 match history, inspired b
 - **Month markers** — optionally show month labels in Years view. This control is hidden in Month view, where it is not needed.
 - **Multiple themes** — CSRep, GitHub, Leetify, and Windows XP.
 - **Second-account support** — when second-account data is available, toggle it to include those matches in the calendar.
-- **Hover details** — hover over a cell to see its date and match count.
-- <img width="169" height="81" alt="Image" src="https://github.com/user-attachments/assets/94ad7d1a-61d4-405d-89b8-27d450af92cb" />
+- **Hover details** — hover over a cell to see its date and match count, and Matches Breakdown.
+- <img width="139" height="126" alt="Image" src="https://github.com/user-attachments/assets/7fcc077d-16fd-4be6-bd80-560ec61f3295" />
 - **Resizable calendar** — resize the calendar area to suit your screen.
 - **Drag and drop** — drop a supported data file into the upload area, or click to select it. After loading, the upload area hides and the calendar is shown.
 
