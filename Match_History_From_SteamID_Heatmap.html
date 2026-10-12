@@ -180,9 +180,17 @@
       background: rgba(14, 143, 95, 0.08);
       color: #fff;
     }
-    .file-zone input {
-      display: none;
-    }
+    .file-zone input { display: none; }
+    .accounts-menu { position: relative; display: inline-flex; align-items: center; }
+    .accounts-panel { position: fixed; z-index: 99999; top: 0; left: 0; width: min(360px, calc(100vw - 28px)); max-height: min(62vh, 440px); overflow-y: auto; margin: 0; padding: 12px 13px; border: 1px solid #374151; border-radius: 8px; background: rgba(31, 41, 55, .94); color: #fff; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); box-shadow: 0 5px 18px rgba(0,0,0,.3); } 
+    .accounts-panel[hidden] { display: none !important; }
+    .accounts-panel > strong { display: block; text-align: center; margin-bottom: 10px; font-size: .95rem; }
+    .checklist-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-bottom: 10px; }
+    .checklist-actions button { border: 1px solid #526174; border-radius: 6px; padding: 6px 9px; background: rgba(255,255,255,.035); color: #fff; font: inherit; font-size: .8rem; cursor: pointer; }
+    .checklist-actions button:hover { border-color: var(--header-accent); }
+    #fileChecklistItems { display: grid; gap: 7px; font-size: .86rem; }
+    #fileChecklistItems label { display: flex; gap: 8px; align-items: center; overflow-wrap: anywhere; font-weight: 400; }
+    #fileChecklistItems input { flex: 0 0 auto; accent-color: var(--header-accent); }
 
     .calendar-panel {
       background: var(--calendar-bg);
@@ -424,7 +432,7 @@
     <!-- Upload stays outside the resizable calendar box and is visible before a file is loaded. -->
     <div class="file-zone" id="fileZone">
       <div>Click here or drag & drop <strong>TXT, CSV, TSV, or XLSX file</strong></div>
-      <input type="file" id="fileInput" accept=".txt,.csv,.tsv,.xlsx,text/plain,text/csv,text/tab-separated-values,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+      <input type="file" id="fileInput" multiple accept=".txt,.csv,.tsv,.xlsx,text/plain,text/csv,text/tab-separated-values,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
     </div>
 
     <div class="card" id="calendarCard">
@@ -432,6 +440,19 @@
         <div class="header">
           <div class="total">Total matches: <span id="totalMatches">0</span></div>
           <div class="header-actions">
+            <div class="accounts-menu" id="accountsMenu">
+              <button type="button" class="theme-toggle" id="accountsToggle" hidden aria-expanded="false">Accounts</button>
+              <section id="accountsPanel" class="accounts-panel" hidden>
+                <strong>Accounts included in calendar</strong>
+                <div class="checklist-actions">
+                  <button type="button" id="addMoreFiles">Add files</button>
+                  <button type="button" id="selectAllFiles">Select all</button>
+                  <button type="button" id="clearFiles">Clear selection</button>
+                  <input type="file" id="moreFilesInput" multiple accept=".txt,.csv,.tsv,.xlsx" hidden>
+                </div>
+                <div id="fileChecklistItems"></div>
+              </section>
+            </div>
             <button type="button" class="theme-toggle" id="modeToggle" hidden title="Cycle between All Matches and available categories">All Matches</button>
             <button type="button" class="theme-toggle" id="themeToggle" title="Cycle through CSRep, GitHub, Leetify, and Windows XP themes">Theme: CSRep</button>
             <label class="numbers-control" aria-pressed="false"><input type="checkbox" id="numbersToggle"> Show numbers</label>
@@ -479,6 +500,11 @@
     let activeMode = 'all';
     let activityDates = [];
     let categoryCountsByDate = {};
+    const importedAccounts = new Map();
+    let accountSequence = 0;
+    const accountsToggle = document.getElementById('accountsToggle');
+    const accountsPanel = document.getElementById('accountsPanel');
+    const moreFilesInput = document.getElementById('moreFilesInput');
     const modeToggle = document.getElementById('modeToggle');
     const activityModes = [
       { key: 'premier', label: 'Premier', headers: ['premier'] },
@@ -516,10 +542,13 @@
 
     function applyActivityMode() {
       if (!activitySeries || !activityDates.length) return;
-      const keys = activeMode === 'all' ? activityModes.filter(m => Array.isArray(activitySeries[m.key])).map(m => m.key) : [activeMode];
       const data = {};
       activityDates.forEach((date, i) => {
-        data[date] = keys.reduce((sum, key) => sum + (Number(activitySeries[key]?.[i]) || 0), 0);
+        if (activeMode === 'all') {
+          data[date] = Number(activitySeries.__all?.[i]) || 0;
+        } else {
+          data[date] = Number(activitySeries[activeMode]?.[i]) || 0;
+        }
       });
       loadedData = data;
       categoryCountsByDate = {};
@@ -603,16 +632,135 @@
     fileZone.addEventListener('drop', (e) => {
       e.preventDefault();
       fileZone.classList.remove('dragover');
-      if (e.dataTransfer.files.length) {
-        handleFile(e.dataTransfer.files[0]);
-      }
+      if (e.dataTransfer.files.length) Array.from(e.dataTransfer.files).forEach(file => handleFile(file));
     });
 
     fileInput.addEventListener('change', () => {
-      if (fileInput.files.length) {
-        handleFile(fileInput.files[0]);
+      if (fileInput.files.length) Array.from(fileInput.files).forEach(file => handleFile(file));
+      fileInput.value = '';
+    });
+    document.getElementById('addMoreFiles').addEventListener('click', () => moreFilesInput.click());
+    moreFilesInput.addEventListener('change', () => {
+      if (moreFilesInput.files.length) Array.from(moreFilesInput.files).forEach(file => handleFile(file));
+      moreFilesInput.value = '';
+    });
+    function positionAccountsPopup() {
+      if (accountsPanel.hidden) return;
+      const rect = accountsToggle.getBoundingClientRect();
+      const panelWidth = Math.min(360, window.innerWidth - 28);
+      let left = rect.left + rect.width / 2 - panelWidth / 2;
+      left = Math.max(14, Math.min(left, window.innerWidth - panelWidth - 14));
+      accountsPanel.style.left = `${left}px`;
+      accountsPanel.style.top = `${Math.min(rect.bottom + 6, window.innerHeight - 100)}px`;
+    }
+
+    function closeAccountsPopup() {
+      accountsPanel.hidden = true;
+      accountsToggle.setAttribute('aria-expanded', 'false');
+      accountsToggle.classList.remove('active');
+    }
+
+    accountsToggle.addEventListener('click', event => {
+      event.stopPropagation();
+      const opening = accountsPanel.hidden;
+      accountsPanel.hidden = !opening;
+      accountsToggle.setAttribute('aria-expanded', String(opening));
+      accountsToggle.classList.toggle('active', opening);
+      if (opening) positionAccountsPopup();
+    });
+
+    window.addEventListener('resize', positionAccountsPopup);
+    window.addEventListener('scroll', positionAccountsPopup, true);
+
+    // Treat the area outside the popup as a dismiss target, without closing
+    // when the user interacts with the popup or its controls.
+    document.addEventListener('pointerdown', event => {
+      if (!accountsPanel.hidden && !accountsPanel.contains(event.target) && !accountsToggle.contains(event.target)) {
+        closeAccountsPopup();
       }
     });
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && !accountsPanel.hidden) closeAccountsPopup();
+    });
+    document.getElementById('selectAllFiles').addEventListener('click', () => {
+      importedAccounts.forEach(account => account.selected = true);
+      renderAccountChecklist();
+      recomputeAccounts();
+    });
+    document.getElementById('clearFiles').addEventListener('click', () => {
+      importedAccounts.forEach(account => account.selected = false);
+      renderAccountChecklist();
+      recomputeAccounts();
+    });
+
+    function renderAccountChecklist() {
+      const list = document.getElementById('fileChecklistItems');
+      list.innerHTML = '';
+      importedAccounts.forEach(account => {
+        const label = document.createElement('label');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = account.selected;
+        checkbox.addEventListener('change', () => {
+          account.selected = checkbox.checked;
+          recomputeAccounts();
+        });
+        const text = document.createElement('span');
+        text.textContent = `${account.label} (${Object.keys(account.data).length} dates)`;
+        text.title = account.filename;
+        label.append(checkbox, text);
+        list.appendChild(label);
+      });
+      accountsToggle.hidden = importedAccounts.size === 0;
+    }
+
+    function recomputeAccounts() {
+      const selected = [...importedAccounts.values()].filter(account => account.selected);
+      const combined = {};
+      selected.forEach(account => {
+        Object.entries(account.data).forEach(([date, count]) => {
+          combined[date] = (combined[date] || 0) + (Number(count) || 0);
+        });
+      });
+      activitySeries = null;
+      activityDates = [];
+      categoryCountsByDate = {};
+      activeMode = 'all';
+      modeToggle.hidden = true;
+      modeToggle.textContent = 'All Matches';
+
+      const categorized = selected.filter(account => account.categoryRows.length > 0);
+      if (selected.length && Object.keys(combined).length) {
+        activityDates = [...new Set([
+          ...Object.keys(combined),
+          ...categorized.flatMap(account => account.categoryRows.map(row => row.date))
+        ])].sort();
+        activitySeries = { __all: activityDates.map(date => Number(combined[date]) || 0) };
+        activityModes.forEach(mode => {
+          const present = categorized.some(account => account.categoryRows.some(row => Object.prototype.hasOwnProperty.call(row.values, mode.key)));
+          if (present) activitySeries[mode.key] = activityDates.map(date => categorized.reduce((sum, account) => sum + account.categoryRows
+            .filter(row => row.date === date)
+            .reduce((rowSum, row) => rowSum + (Number(row.values[mode.key]) || 0), 0), 0));
+        });
+        modeToggle.hidden = !Object.keys(activitySeries).some(key => key !== '__all');
+        if (!modeToggle.hidden) applyActivityMode();
+        else {
+          loadedData = combined;
+          activitySeries = null;
+          renderCalendar(loadedData);
+        }
+      } else if (Object.keys(combined).length) {
+        loadedData = combined;
+        renderCalendar(loadedData);
+      } else {
+        loadedData = {};
+        document.getElementById('totalMatches').textContent = '0';
+        const mainArea = document.querySelector('#calendarCard .calendar-area');
+        if (mainArea) mainArea.innerHTML = '<p style="color:var(--muted)">Select at least one account to show match activity.</p>';
+      }
+      document.getElementById('calendarCard').classList.toggle('loaded', importedAccounts.size > 0);
+    }
 
     function handleFile(file) {
       const isXlsx = /\.xlsx$/i.test(file.name);
@@ -657,43 +805,34 @@
         }
 
         if (!Object.keys(data).length && !categoryRows.length) {
-          alert('No date and match-count data found. Use a supported TXT, CSV, TSV, or XLSX file.');
+          alert('No date and match-count data found in "' + file.name + '". Use a supported TXT, CSV, TSV, or XLSX file.');
           return;
         }
 
+        const accountId = 'account-' + (++accountSequence);
+        const dates = new Set([...Object.keys(data), ...categoryRows.map(row => row.date)]);
+        const accountData = {};
         if (categoryRows.length) {
-          activityDates = [...new Set(categoryRows.map(row => row.date))].sort();
-          categoryCountsByDate = {};
-          categoryRows.forEach(row => {
-            categoryCountsByDate[row.date] = categoryCountsByDate[row.date] || {};
-            Object.entries(row.values).forEach(([key, value]) => {
-              categoryCountsByDate[row.date][key] = (categoryCountsByDate[row.date][key] || 0) + value;
-            });
-          });
-          activitySeries = {};
-          activityModes.forEach(mode => {
-            if (categoryRows.some(row => Object.prototype.hasOwnProperty.call(row.values, mode.key))) {
-              activitySeries[mode.key] = activityDates.map(date => categoryRows.filter(row => row.date === date).reduce((sum, row) => sum + (Number(row.values[mode.key]) || 0), 0));
-            }
-          });
-          activeMode = 'all';
-          modeToggle.hidden = !Object.keys(activitySeries).length;
-          modeToggle.textContent = 'All Matches';
-          modeToggle.classList.remove('active');
-          applyActivityMode();
+          for (const date of dates) {
+            accountData[date] = categoryRows
+              .filter(row => row.date === date)
+              .reduce((sum, row) => sum + Object.values(row.values).reduce((a, v) => a + (Number(v) || 0), 0), 0);
+          }
         } else {
-          activitySeries = null;
-          activityDates = [];
-          categoryCountsByDate = {};
-          activeMode = 'all';
-          modeToggle.hidden = true;
-          loadedData = data;
-          renderCalendar(loadedData);
+          Object.assign(accountData, data);
         }
+        const stem = file.name.replace(/\.[^.]+$/, '');
+        const idMatch = stem.match(/\d{15,20}/);
+        const label = idMatch ? idMatch[0] : stem;
+        importedAccounts.set(accountId, { id: accountId, label, filename: file.name, data: accountData, categoryRows, selected: true });
+        renderAccountChecklist();
+        recomputeAccounts();
+
         fileZone.style.display = 'none';
         const exporterPanel = document.getElementById('exporterPanel');
         if (exporterPanel) exporterPanel.style.display = 'none';
         document.getElementById('calendarCard').classList.add('loaded');
+        accountsToggle.hidden = false;
       };
 
       if (isXlsx) {
